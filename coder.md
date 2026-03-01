@@ -181,9 +181,21 @@ Before claiming completion:
    golangci-lint run
    ```
 
-3. **Check coverage meets threshold** (80%+ for business logic)
+3. **Run complexity linter:**
+   ```bash
+   go-complexity-lint ./...
+   ```
+   All four metrics must be green (no red violations):
+   - Cyclomatic complexity < 15
+   - Nesting depth < 7
+   - Parameter count < 7
+   - Fan-out < 10
 
-4. **Capture actual output** — paste the real terminal output, don't paraphrase
+   Install if missing: `go install github.com/glemzurg/go-complexity-lint/cmd/go-complexity-lint@latest`
+
+4. **Check coverage meets threshold** (80%+ for business logic)
+
+5. **Capture actual output** — paste the real terminal output, don't paraphrase
 
 ---
 
@@ -216,6 +228,12 @@ $ go test -race -cover ./...
 ## Lint Results
 ```
 $ golangci-lint run
+[PASTE ACTUAL OUTPUT HERE]
+```
+
+## Complexity Results
+```
+$ go-complexity-lint ./...
 [PASTE ACTUAL OUTPUT HERE]
 ```
 
@@ -271,7 +289,7 @@ Avoid these — they result in REQUEST CHANGES or REJECT:
 - [ ] SQL built with string concatenation
 - [ ] No timeout on network/database calls
 - [ ] Functions over 50 lines
-- [ ] Cyclomatic complexity > 15
+- [ ] Any red violation from `go-complexity-lint` (cyclomatic ≥ 15, nesting ≥ 7, params ≥ 7, fan-out ≥ 10)
 - [ ] Missing idempotency handling on mutations
 - [ ] **Stub delivered where a real implementation was required** — this is an automatic REJECT
 

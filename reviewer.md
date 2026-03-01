@@ -242,10 +242,12 @@ These dimensions are scored. They contribute to overall quality but don't automa
 
 **Red flags:**
 - Functions > 50 lines
-- Cyclomatic complexity > 15
+- Any red violation from `go-complexity-lint` (cyclomatic ≥ 15, nesting ≥ 7, params ≥ 7, fan-out ≥ 10)
 - Magic numbers without constants
 - Copy-pasted code blocks
 - Tests that test implementation, not behavior
+
+> If the Completion Report does not include `go-complexity-lint` output, request it before scoring this dimension.
 
 ---
 
