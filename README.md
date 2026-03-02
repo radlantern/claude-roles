@@ -7,31 +7,33 @@ Shared Claude agent role definitions (Tasker, Coder, Reviewer, Security Linter).
 | File | Role | Purpose |
 |------|------|---------|
 | `tasker.md` | Orchestrator | Breaks down work, dispatches agents, manages review cycles |
-| `coder.md` | Implementation Agent | Writes tested code to a spec |
-| `reviewer.md` | Code Reviewer | 8-dimension quality review with pass/fail critical gates |
-| `security-linter.md` | Security Auditor | Focused SQL injection / PII / integer overflow audit |
+| `design-agent.md` | Design Agent | Produces 2-3 competing designs for Tasker to select — mandatory for Critical/High risk |
+| `coder.md` | Implementation Agent | Writes tested code against an approved design spec |
+| `reviewer.md` | Code Reviewer | 8-dimension review with focused sub-agents and pass/fail critical gates |
+| `security-linter.md` | Security Auditor | Focused SQL injection / PII / integer overflow audit — gates Critical review |
 
 ---
 
 ## Prerequisites
 
-### Codex CLI (optional — enables dual-reviewer workflow)
+### Three-model review panel
 
-The Tasker dispatches two independent reviewers in parallel. Reviewer B uses OpenAI Codex CLI:
+The Tasker dispatches three independent reviewers in parallel. Install both CLIs:
 
+**Codex CLI (Reviewer B):**
 ```bash
 npm install -g @openai/codex
-# Or use via npx without installing
-npx @openai/codex --version
-```
-
-Export your OpenAI API key:
-
-```bash
 export OPENAI_API_KEY=sk-...
 ```
 
-**Without Codex CLI:** The Tasker falls back to a single Claude subagent reviewer. High-risk code should use both reviewers; medium/low risk is fine with one.
+**Gemini CLI (Reviewer C):**
+```bash
+npm install -g @google/gemini-cli
+export GEMINI_API_KEY=...
+```
+
+**Without the CLIs:** The Tasker falls back to additional Claude subagent reviewers.
+All three reviewers are required for Critical and High risk consensus.
 
 ---
 
@@ -82,7 +84,11 @@ npx @openai/codex --quiet --approval-mode full-auto \
   "Read .claude/roles/reviewer.md for your role. Review: [Review Request]"
 ```
 
-**To dispatch the Security Linter (subagent):**
+**To dispatch the Design Agent (subagent — Critical/High risk):**
+Create a general-purpose subagent with this prompt:
+"Read `.claude/roles/design-agent.md` for your role instructions, then produce designs for: [Task Assignment]"
+
+**To dispatch the Security Linter (subagent — Critical risk gate):**
 Create a general-purpose subagent with this prompt:
 "Read `.claude/roles/security-linter.md` for your role instructions, then audit: [file list]"
 
@@ -219,6 +225,7 @@ git commit -m "chore: update claude-roles submodule"
 | Want to... | Say to Claude |
 |------------|---------------|
 | Run the full workflow | "Read `.claude/roles/tasker.md` and act as Tasker. Task: ..." |
+| Design before coding | "Read `.claude/roles/design-agent.md` and produce designs for: ..." |
 | Just implement something | "Read `.claude/roles/coder.md` and implement: ..." |
 | Review existing code | "Read `.claude/roles/reviewer.md` and review: ..." |
 | Security audit only | "Read `.claude/roles/security-linter.md` and audit: ..." |

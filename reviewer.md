@@ -42,13 +42,54 @@ Before anything else, check: **is this a first review or a re-review?**
 - New findings in scope: categorize normally (Critical/High/Medium/Low)
 - Only new CRITICAL/HIGH findings trigger another iteration — do not surface new MEDIUM/LOW
 
+### Step 0.5: Spawn Focused Sub-Agents (first review only)
+
+After the context check, immediately dispatch focused sub-agents in parallel while
+you proceed with Steps 1-3. Do not wait for them — merge their findings at Step 4.
+
+**Tier 1 — Mandatory, based on code content:**
+
+| Code contains | Spawn this focused agent |
+|---------------|--------------------------|
+| SQL / ORM calls / migrations | DB & query agent |
+| Balance, amount, payout, bet calculations | Financial integrity agent |
+| Auth checks, tokens, session handling | Auth & permissions agent |
+| Goroutines, mutexes, channels, shared state | Concurrency agent |
+
+**Tier 2 — Triggered, after your broad review:**
+
+For each dimension you score < 4/5 OR where you find a Critical/High issue, spawn one
+focused agent to deep-dive that specific area. Cap: **3 Tier 2 agents**.
+
+**Hard cap: 5 focused agents total** (Tier 1 + Tier 2 combined). If the code touches
+enough to exceed 5, note it as a finding — the change is likely too large.
+
+**Focused agent prompt template:**
+
+```
+You are a focused code reviewer. Your scope is strictly: [specific concern].
+Do not comment on anything outside this scope.
+
+Files to review: [specific files relevant to the concern]
+
+Concern: [e.g., "Verify all SQL queries use parameterized inputs — trace every
+user-controlled value from handler to database call"]
+
+Return findings as: SAFE (cite the defensive code file:line) or RISK (cite the
+vulnerable path file:line with attack vector).
+```
+
+**At Step 4:** Merge all focused agent findings into your final output alongside
+your own findings. Attribute each finding to its source (broad review or specific agent).
+
 ### Step 1: Understand the Spec (2 min)
 
 Before looking at code:
 - What is the core requirement?
 - What are the stated edge cases?
-- What is the risk level (High/Medium/Low)?
+- What is the risk level (Critical/High/Medium/Low)?
 - Does this include a schema migration? If yes, apply the Migration Checklist in Compliance.
+- If an Approved Design Spec is included: does the implementation match it? Flag deviations.
 
 ### Step 2: Trace the Happy Path (5 min)
 
