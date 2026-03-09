@@ -130,6 +130,40 @@ When you create a new task (breaking down a request), set `status: To Do` and le
 
 ---
 
+## Phase 0.5: Git Isolation
+
+**Every ticket gets its own worktree. No exceptions.**
+
+Before any Coder is dispatched, create an isolated git worktree using `superpowers:using-git-worktrees`. Work is never done directly on `main` or on a shared branch.
+
+### Branch naming
+
+| Task type | Branch name |
+|-----------|-------------|
+| Bug fix | `fix/SMG-XXXX-short-description` |
+| Feature | `feat/SMG-XXXX-short-description` |
+| Refactor | `refactor/SMG-XXXX-short-description` |
+| Docs | `docs/SMG-XXXX-short-description` |
+
+### One ticket = one worktree = one branch = one PR
+
+- Branch from `main` only
+- One ticket's work per branch — never combine tickets
+- The PR for that branch targets `main`
+- The PR is raised only after the task passes review (Phase 4.5)
+
+### What belongs where
+
+| Belongs in the repo | Belongs in Jira / local only |
+|---------------------|------------------------------|
+| Code, tests, migrations | Ticket descriptions, investigation notes |
+| README, architecture docs | Task YAML files used for planning |
+| `.claude/roles/` and `.claude/skills/` | Spike/scratch work |
+
+**Never commit Jira ticket content, task management YAMLs, or investigation notes to the repository.**
+
+---
+
 ## Phase 1: Receive and Analyze
 
 When you receive a request from the human:
@@ -282,6 +316,19 @@ Stubs are only acceptable when:
 - The stub has a `// TODO: [ticket-id]` comment linking to the real-implementation task
 
 If the Coder delivers a stub as a completion of a non-stub task, it is **REJECTED**.
+
+### Bug Fix Protocol
+
+**A bug fix without a prior failing test is REJECTED.**
+
+For any task classified as a bug fix (`type: Fix`):
+
+1. **Write a failing test first** — the test must be named after the ticket (e.g. `TestSMG1653_...`) and must document the root cause in its docstring
+2. **Confirm RED** — paste the actual `go test` output showing the test failing for the right reason (not a compile error, not a wrong assertion — the specific failure that proves the bug exists)
+3. **Write the minimal fix** — change only what is necessary to make the test pass; do not improve surrounding code
+4. **Confirm GREEN** — paste the actual `go test -race ./...` output showing all tests pass
+
+A Completion Report for a bug fix that does not include a prior failing test output is **automatically REJECTED** — return it to Coder with the instruction to start over from step 1.
 
 ### Time Budget
 - Understanding: 10 min
@@ -605,9 +652,99 @@ After Coder fixes CRITICAL/HIGH findings, send a scoped re-review — NOT a full
 
 Continue until no open CRITICAL/HIGH findings remain, or iteration limit reached.
 
-### 4.5 Report Approved Task
+### 4.5 Create the Pull Request
 
-When verdict is APPROVE:
+#### Human approval gate (Critical risk and financial/resolution code)
+
+**Before raising a PR for any Critical risk task, or any code touching:**
+- Bet state transitions or settlement logic
+- Wallet payout, refund, or balance mutation calls
+- Recovery/retry paths that replay financial operations
+- Transaction history writes
+- Payout amount calculations
+
+**You MUST stop and report the APPROVE verdict to the human first. Do NOT raise the PR. Wait for explicit human permission ("go ahead", "raise it", "LGTM") before proceeding.**
+
+Format that escalation as:
+
+```markdown
+## Ready to Raise PR: [Task ID]
+
+**Review Status**: APPROVED (all critical dimensions pass, no open CRITICAL/HIGH findings)
+**Risk**: Critical — financial/resolution code
+
+This task touches [bet settlement / wallet payouts / recovery logic — be specific].
+Awaiting your explicit approval before raising the PR.
+
+### Reviewer consensus
+| Reviewer | Critical Dims | Quality | Verdict |
+|----------|--------------|---------|---------|
+| A        | all PASS     | X/25    | APPROVE |
+| B        | all PASS     | X/25    | APPROVE |
+| C        | all PASS     | X/25    | APPROVE |
+
+### Deferred findings (MEDIUM/LOW — logged for future work)
+[Any deferred findings]
+```
+
+Only after receiving explicit human approval, proceed to raise the PR.
+
+For High/Medium/Low risk tasks with no financial/resolution code, raise the PR immediately on APPROVE (no human gate required).
+
+When verdict is APPROVE and the PR gate is cleared (either human-approved for Critical, or auto-proceed for other tiers):
+
+#### PR title format
+
+```
+type(scope): [SMG-XXXX] imperative description in present tense
+```
+
+Examples:
+- `fix(platform): [SMG-1653] resolve bet by hit-bound ID to prevent race condition`
+- `feat(wallet): [SMG-1657] add escrow state to prevent silent payout loss`
+
+#### Required PR body
+
+```markdown
+## What
+[One paragraph — what was changed and why it matters]
+
+## Why
+[Root cause or requirement. Reference the Jira ticket: SMG-XXXX]
+
+## How
+[Key implementation decisions — notable patterns, locking strategy, etc.]
+
+## Test evidence
+```
+go test -race ./... output showing all tests pass
+```
+
+## Ticket
+SMG-XXXX
+```
+
+#### PR rules
+
+- One PR per ticket — never bundle multiple tickets
+- Target `main`
+- No unrelated changes (no reformatting, no style fixes for code you didn't touch)
+- **No attribution of any kind** — no "Generated with Claude Code", no "Co-Authored-By", no author names, no tool references; code and docs belong to the team
+- PR description must be self-contained — a reviewer with no prior context must understand what and why
+
+#### PR size gates
+
+| Lines changed | Action |
+|---------------|--------|
+| ≤ 250 | Proceed normally |
+| 251–500 | Flag to human — confirm scope before raising PR |
+| > 500 | Stop — split or get explicit human approval |
+
+---
+
+### 4.6 Report Approved Task
+
+When verdict is APPROVE and PR is raised:
 
 ```markdown
 ## Task Complete: [Task ID]
@@ -632,7 +769,7 @@ When verdict is APPROVE:
 
 Report to human that task is complete.
 
-### 4.6 Report Rejected Task
+### 4.7 Report Rejected Task
 
 If either reviewer REJECTs, escalate to human:
 
@@ -756,3 +893,10 @@ When asked "how long will X take?", use this approach:
 - You must **use `superpowers:executing-plans`** when a `docs/plans/*.md` exists for the task — never dispatch monolithic free-form execution when a plan file is available
 - You must **checkpoint between batches** in plan-based execution — approve each batch before the Coder proceeds to the next
 - You must **not run full three-model review on each batch** — full review happens once, after all batches are complete
+- You must **create one worktree per ticket** (via `superpowers:using-git-worktrees`) before dispatching any Coder — never work directly on `main` or a shared branch
+- You must **ensure each PR covers exactly one ticket** — PRs bundling multiple tickets are rejected before raising
+- You must **require a failing test before fix code** for every bug fix — a Completion Report without prior RED test output is automatically rejected
+- You must **never approve a Completion Report that commits task management YAMLs, investigation notes, or Jira ticket content** to the repository
+- You must **verify PR body completeness** (What / Why / How / Test evidence / Ticket) before declaring the task done
+- You must **verify no attribution of any kind** — no author names, no tool references, no "Co-Authored-By", no "Generated with" — in commits or PR body before raising
+- You must **stop and get explicit human approval before raising any PR** for Critical risk tasks or any code touching bet settlement, wallet payouts, balance mutations, recovery/retry paths, or payout calculations — report APPROVE verdict, then wait; never auto-raise for financial/resolution code

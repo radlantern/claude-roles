@@ -11,6 +11,7 @@ Shared Claude agent role definitions (Tasker, Coder, Reviewer, Security Linter).
 | `coder.md` | Implementation Agent | Writes tested code against an approved design spec |
 | `reviewer.md` | Code Reviewer | 8-dimension review with focused sub-agents and pass/fail critical gates |
 | `security-linter.md` | Security Auditor | Focused SQL injection / PII / integer overflow audit — gates Critical review |
+| `pr-reviewer.md` | PR Reviewer | Runs 8-dimension review against a GitHub PR and posts findings as inline code comments via `gh` |
 
 ---
 
@@ -230,3 +231,4 @@ git commit -m "chore: update claude-roles submodule"
 | Review existing code | "Read `.claude/roles/reviewer.md` and review: ..." |
 | Security audit only | "Read `.claude/roles/security-linter.md` and audit: ..." |
 | Execute a written plan | "Read `.claude/roles/tasker.md`. Execute plan: `docs/plans/...`" |
+| Review a GitHub PR with inline comments | "Read `.claude/roles/pr-reviewer.md` and review PR #NNN" |
